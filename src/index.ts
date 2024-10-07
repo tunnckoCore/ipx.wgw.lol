@@ -26,15 +26,74 @@ Bun.serve({
 		const [modifiers, ...data] = url.pathname.slice(1).split('/');
 		const dataURI = data.join('/');
 
-		if (modifiers !== 'basic') {
-			return ipxOptimizeHandler(req, modifiers, dataURI);
+		if (/(?:basic|c?webp|multiple)/gi.test(modifiers)) {
+			if (req.method === 'POST') {
+				return imageminWebpPostHandler(req);
+			}
+
+			return imageminWebpGetHandler(req, dataURI);
 		}
 
-		return imageminWebpHandler(req, dataURI);
+		return ipxOptimizeHandler(req, modifiers, dataURI);
 	},
 });
 
-async function imageminWebpHandler(req: Request, dataURI: string) {
+async function imageminWebpPostHandler(req: Request) {
+	try {
+		let files;
+
+		if (req.headers.get('content-type') === 'application/json') {
+			const resp = await req.json();
+			const incomingFiles = Array.isArray(resp.files) ? resp.files : [resp.files];
+			files = await Promise.all(
+				incomingFiles
+					.filter((x: string) => typeof x === 'string')
+					.map(async (fileURI: string) => {
+						const resp = await fetch(fileURI);
+						const bufUint8 = new Uint8Array(await resp.arrayBuffer());
+						const type = resp.headers.get('content-type') || 'image/png';
+						const digestAsName = await createDigest(bufUint8);
+
+						const file = new File([bufUint8], digestAsName.slice(0, 10), { type });
+						// @ts-ignore bruh, yeah
+						file.digest = digestAsName;
+						return file;
+					}),
+			);
+		} else if (req.headers.get('content-type')?.includes('multipart/form-data')) {
+			const formData = await req.formData();
+			files = formData.getAll('files') as File[] | Blob[];
+		}
+
+		if (!files || (files && files.length === 0)) {
+			return Response.json({ error: { message: 'No files provided', httpStatus: 400 } }, { status: 400 });
+		}
+
+		const toWebp = imageminWebp({});
+
+		const results = await Promise.all(
+			files
+				.filter((x: File | Blob) => x.type.includes('image'))
+				.map(async (file: File | Blob) => {
+					const buf = await file.arrayBuffer();
+					const optimized = await toWebp(Buffer.from(new Uint8Array(buf)));
+
+					// @ts-ignore bruh, yeah
+					const hash = file.digest || (await createDigest(optimized));
+
+					return { hash, output: String('[' + new Uint8Array(optimized) + ']'), type: 'image/webp', name: file.name };
+				}),
+		);
+
+		const digest = await createDigest(JSON.stringify(results.map((x) => x.hash)));
+
+		return Response.json({ result: { digest, files: results } });
+	} catch (err: any) {
+		return Response.json({ error: { message: `Failure: ${err.message}`, httpStatus: 500 } }, { status: 500 });
+	}
+}
+
+async function imageminWebpGetHandler(req: Request, dataURI: string) {
 	const ifNoneMatch = req.headers.get('if-none-match');
 
 	if (ifNoneMatch) {
