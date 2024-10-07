@@ -1,19 +1,18 @@
 {
-  "name": "falling-water-cd4f",
-  "version": "0.0.0",
-  "private": true,
-  "scripts": {
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev",
-    "test": "vitest",
-    "cf-typegen": "wrangler types"
-  },
-  "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.5.2",
-    "@cloudflare/workers-types": "^4.20241004.0",
-    "typescript": "^5.5.2",
-    "vitest": "2.0.5",
-    "wrangler": "^3.60.3"
-  }
+	"name": "falling-water-cd4f",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"start": "bun src/index.ts"
+	},
+	"devDependencies": {
+		"@flydotio/dockerfile": "^0.5.9",
+		"@types/bun": "latest",
+		"typescript": "^5.5.2"
+	},
+	"dependencies": {
+		"h3": "^1.13.0",
+		"imagemin-webp": "^8.0.0",
+		"ipx": "^3.0.1"
+	}
 }
