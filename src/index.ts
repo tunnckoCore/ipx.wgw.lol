@@ -1,16 +1,3 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.toml`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
-
 import { rm as remove } from 'node:fs/promises';
 import { toWebHandler } from 'h3';
 import { createIPX, createIPXH3App, ipxFSStorage, ipxHttpStorage } from 'ipx';
@@ -28,6 +15,14 @@ const webHandler = toWebHandler(app);
 Bun.serve({
 	async fetch(req: Request) {
 		const url = new URL(req.url);
+
+		if (url.pathname === '/') {
+			return new Response(null, {
+				status: 301,
+				headers: { location: `https://github.com/unjs/ipx` },
+			});
+		}
+
 		const [modifiers, ...data] = url.pathname.slice(1).split('/');
 		const dataURI = data.join('/');
 
